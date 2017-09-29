@@ -7,7 +7,7 @@ using System.Runtime.Serialization.Json;
 
 namespace PuzzlepartDynamicsTools
 {
-    public class GetBrregDetailsForAccount : IPlugin
+    public class GetBrregDetailsForAccountPlugin : IPlugin
     {
         // Hard coded url to Brreg to retrieve company information
         private static string brregApiUrl = "https://data.brreg.no/enhetsregisteret/enhet/";
@@ -20,20 +20,23 @@ namespace PuzzlepartDynamicsTools
                 var account = context.InputParameters["Target"] as Entity;
                 var accountNumber = account.GetAttributeValue<string>("accountnumber");
 
-                // Replace international formating in case of copy/paste
-                accountNumber = accountNumber.ToLower().Replace(" ", "").Replace("mva", "").Replace("NO", "");
-                if (accountNumber.Length == 9 && int.TryParse(accountNumber, out int orgNum))
+                if (!string.IsNullOrEmpty(accountNumber))
                 {
-                    BrregCompanyDTO brregCompany;
-                    using (var client = new WebClient())
+                    // Replace international formating in case of copy/paste
+                    accountNumber = accountNumber.ToLower().Replace(" ", "").Replace("mva", "").Replace("NO", "");
+                    if (accountNumber.Length == 9 && int.TryParse(accountNumber, out int orgNum))
                     {
-                        var stream = client.OpenRead($"{brregApiUrl}{accountNumber}.json");
-                        var serializer = new DataContractJsonSerializer(typeof(BrregCompanyDTO));
+                        BrregCompanyDTO brregCompany;
+                        using (var client = new WebClient())
+                        {
+                            var stream = client.OpenRead($"{brregApiUrl}{accountNumber}.json");
+                            var serializer = new DataContractJsonSerializer(typeof(BrregCompanyDTO));
 
-                        brregCompany = (BrregCompanyDTO)serializer.ReadObject(stream);
+                            brregCompany = (BrregCompanyDTO)serializer.ReadObject(stream);
+                        }
+
+                        context.InputParameters["Target"] = BrregCompanyMapper.MapFromBrregToAccount(brregCompany, account, trace);
                     }
-
-                    context.InputParameters["Target"] = BrregCompanyMapper.MapFromBrregToAccount(brregCompany, account, trace);
                 }
             }
         }
